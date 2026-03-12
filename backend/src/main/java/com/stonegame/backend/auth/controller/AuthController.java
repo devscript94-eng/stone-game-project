@@ -1,5 +1,9 @@
-package com.stonegame.backend.auth;
+package com.stonegame.backend.auth.controller;
 
+import com.stonegame.backend.auth.dto.AuthResponse;
+import com.stonegame.backend.auth.service.AuthService;
+import com.stonegame.backend.auth.dto.LoginRequest;
+import com.stonegame.backend.auth.dto.RegisterRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;

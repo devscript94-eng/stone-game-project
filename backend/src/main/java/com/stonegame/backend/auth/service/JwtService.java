@@ -1,4 +1,4 @@
-package com.stonegame.backend.auth;
+package com.stonegame.backend.auth.service;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;

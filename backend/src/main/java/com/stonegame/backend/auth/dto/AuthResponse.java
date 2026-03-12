@@ -1,4 +1,4 @@
-package com.stonegame.backend.auth;
+package com.stonegame.backend.auth.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

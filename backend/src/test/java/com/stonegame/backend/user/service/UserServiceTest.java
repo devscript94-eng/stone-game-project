@@ -1,6 +1,9 @@
-package com.stonegame.backend.user;
+package com.stonegame.backend.user.service;
 
 import com.stonegame.backend.common.UnauthorizedException;
+import com.stonegame.backend.user.dto.UserProfileResponse;
+import com.stonegame.backend.user.model.Role;
+import com.stonegame.backend.user.model.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

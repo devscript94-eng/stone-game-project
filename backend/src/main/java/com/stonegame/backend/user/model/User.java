@@ -1,4 +1,4 @@
-package com.stonegame.backend.user;
+package com.stonegame.backend.user.model;
 
 import lombok.Getter;
 import lombok.Setter;

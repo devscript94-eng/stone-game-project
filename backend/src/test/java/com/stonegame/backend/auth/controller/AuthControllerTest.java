@@ -1,5 +1,11 @@
-package com.stonegame.backend.auth;
+package com.stonegame.backend.auth.controller;
 
+import com.stonegame.backend.auth.config.JwtAuthenticationFilter;
+import com.stonegame.backend.auth.config.SecurityConfig;
+import com.stonegame.backend.auth.dto.AuthResponse;
+import com.stonegame.backend.auth.dto.LoginRequest;
+import com.stonegame.backend.auth.dto.RegisterRequest;
+import com.stonegame.backend.auth.service.AuthService;
 import com.stonegame.backend.common.GlobalExceptionHandler;
 import jakarta.annotation.Resource;
 import org.junit.jupiter.api.DisplayName;

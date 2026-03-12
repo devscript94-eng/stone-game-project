@@ -1,5 +1,6 @@
-package com.stonegame.backend.user;
+package com.stonegame.backend.user.repository;
 
+import com.stonegame.backend.user.model.User;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.Optional;

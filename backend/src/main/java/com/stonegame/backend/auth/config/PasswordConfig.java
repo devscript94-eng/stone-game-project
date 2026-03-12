@@ -1,4 +1,4 @@
-package com.stonegame.backend.auth;
+package com.stonegame.backend.auth.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

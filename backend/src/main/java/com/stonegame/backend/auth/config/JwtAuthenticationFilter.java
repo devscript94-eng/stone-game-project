@@ -1,7 +1,8 @@
-package com.stonegame.backend.auth;
+package com.stonegame.backend.auth.config;
 
-import com.stonegame.backend.user.User;
-import com.stonegame.backend.user.UserRepository;
+import com.stonegame.backend.auth.service.JwtService;
+import com.stonegame.backend.user.model.User;
+import com.stonegame.backend.user.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

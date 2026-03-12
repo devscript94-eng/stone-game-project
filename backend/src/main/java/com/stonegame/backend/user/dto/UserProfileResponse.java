@@ -1,4 +1,4 @@
-package com.stonegame.backend.user;
+package com.stonegame.backend.user.dto;
 
 /**
  * Response payload for the current authenticated user.

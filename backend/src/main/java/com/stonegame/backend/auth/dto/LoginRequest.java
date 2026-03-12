@@ -1,4 +1,4 @@
-package com.stonegame.backend.auth;
+package com.stonegame.backend.auth.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

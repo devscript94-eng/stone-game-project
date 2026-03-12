@@ -1,8 +1,11 @@
-package com.stonegame.backend.auth;
+package com.stonegame.backend.auth.service;
 
-import com.stonegame.backend.user.Role;
-import com.stonegame.backend.user.User;
-import com.stonegame.backend.user.UserRepository;
+import com.stonegame.backend.auth.dto.AuthResponse;
+import com.stonegame.backend.auth.dto.LoginRequest;
+import com.stonegame.backend.auth.dto.RegisterRequest;
+import com.stonegame.backend.user.model.Role;
+import com.stonegame.backend.user.model.User;
+import com.stonegame.backend.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

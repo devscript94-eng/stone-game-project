@@ -1,8 +1,13 @@
-package com.stonegame.backend.auth;
+package com.stonegame.backend.auth.service;
 
-import com.stonegame.backend.user.Role;
-import com.stonegame.backend.user.User;
-import com.stonegame.backend.user.UserRepository;
+import com.stonegame.backend.auth.dto.AuthResponse;
+import com.stonegame.backend.auth.dto.LoginRequest;
+import com.stonegame.backend.auth.dto.RegisterRequest;
+import com.stonegame.backend.user.model.Role;
+import com.stonegame.backend.user.model.User;
+import com.stonegame.backend.user.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -13,6 +18,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class AuthService {
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -43,11 +49,15 @@ public class AuthService {
         String email = request.getEmail().trim().toLowerCase();
         String username = request.getUsername().trim();
 
+        log.info("Register request received for username={}", username);
+
         if (userRepository.existsByEmailIgnoreCase(email)) {
+            log.error("Email {} is already in use", email);
             throw new IllegalArgumentException("Email is already in use");
         }
 
         if (userRepository.existsByUsernameIgnoreCase(username)) {
+            log.error("Username {} is already in use", username);
             throw new IllegalArgumentException("Username is already in use");
         }
 
@@ -72,6 +82,7 @@ public class AuthService {
                     savedUser.getRole().name()
             );
         } catch (DuplicateKeyException ex) {
+            log.error("Username {} or email {} is already in use", username, email);
             throw new IllegalArgumentException("Username or email is already in use");
         }
     }
@@ -86,9 +97,13 @@ public class AuthService {
         String email = request.getEmail().trim().toLowerCase();
 
         User user = userRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
+                .orElseThrow(() -> {
+                    log.error("user {} not found", email);
+                    return new BadCredentialsException("Invalid email or password");
+                });
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            log.error("Invalid email {} or password", email);
             throw new BadCredentialsException("Invalid email or password");
         }
 

@@ -1,5 +1,7 @@
-package com.stonegame.backend.user;
+package com.stonegame.backend.user.controller;
 
+import com.stonegame.backend.user.dto.UserProfileResponse;
+import com.stonegame.backend.user.service.UserService;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
