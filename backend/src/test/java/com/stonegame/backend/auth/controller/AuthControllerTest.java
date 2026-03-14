@@ -1,7 +1,7 @@
 package com.stonegame.backend.auth.controller;
 
 import com.stonegame.backend.auth.config.JwtAuthenticationFilter;
-import com.stonegame.backend.auth.config.SecurityConfig;
+import com.stonegame.backend.config.SecurityConfig;
 import com.stonegame.backend.auth.dto.AuthResponse;
 import com.stonegame.backend.auth.dto.LoginRequest;
 import com.stonegame.backend.auth.dto.RegisterRequest;

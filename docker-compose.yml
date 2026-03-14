@@ -1,0 +1,30 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: stonegame-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: stonegame-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mongo
+    environment:
+      JWT_SECRET: Q3ZQY3V3b0l4QW5tT3p3Yk1iQm9tZ0x2Y1pZd3JvR2d5Y2x2S2h4dQ==
+      DB_URI: mongodb://admin:admin@mongo:27017/stonegame?authSource=admin
+      JWT_EXPIRATION: 86400000
+
+volumes:
+  mongo_data:
