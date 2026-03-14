@@ -1,0 +1,15 @@
+<h1>Stone Game</h1>
+
+@if (!authService.isLoggedIn()) {
+  <p>Welcome to the game.</p>
+  <a routerLink="/login">Login</a>
+  <a routerLink="/register">Register</a>
+} @else {
+  <p>Choose a mode:</p>
+
+  <div>
+    <button routerLink="/single-player">Play vs Computer</button>
+    <button routerLink="/multiplayer">Play Multiplayer</button>
+    <button (click)="logout()">Logout</button>
+  </div>
+}

@@ -1,0 +1,15 @@
+<h2>Play vs Computer</h2>
+
+<div>
+  <button (click)="play('STONE')">Stone</button>
+  <button (click)="play('PAPER')">Paper</button>
+  <button (click)="play('SCISSORS')">Scissors</button>
+</div>
+
+@if (result) {
+  <div>
+    <p>Your move: {{ result.playerMove }}</p>
+    <p>Computer move: {{ result.computerMove }}</p>
+    <p>Result: {{ result.result }}</p>
+  </div>
+}

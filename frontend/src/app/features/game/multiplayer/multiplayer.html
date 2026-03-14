@@ -1,0 +1,27 @@
+<h2>Multiplayer</h2>
+
+<button (click)="join()">Join Matchmaking</button>
+
+@if (message) {
+  <p>{{ message }}</p>
+}
+
+@if (matchState) {
+  <div>
+    <p>Match: {{ matchState.matchId }}</p>
+    <p>Status: {{ matchState.status }}</p>
+    <p>Player 1: {{ matchState.playerOneUsername }}</p>
+    <p>Player 2: {{ matchState.playerTwoUsername }}</p>
+    <p>Player 1 move: {{ matchState.playerOneMove }}</p>
+    <p>Player 2 move: {{ matchState.playerTwoMove }}</p>
+    <p>Result: {{ matchState.result }}</p>
+  </div>
+
+  @if (matchState.status === 'WAITING_FOR_MOVES') {
+    <div>
+      <button (click)="submitMove('STONE')">Stone</button>
+      <button (click)="submitMove('PAPER')">Paper</button>
+      <button (click)="submitMove('SCISSORS')">Scissors</button>
+    </div>
+  }
+}
