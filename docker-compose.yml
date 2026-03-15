@@ -46,9 +46,9 @@ services:
     container_name: stonegame-elasticsearch
     restart: unless-stopped
     environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
     ports:
       - "9200:9200"
     volumes:
@@ -61,7 +61,7 @@ services:
     depends_on:
       - elasticsearch
     environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
     ports:
       - "5601:5601"
 
@@ -75,6 +75,61 @@ services:
       - ./monitoring/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
       - ./monitoring/fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
+
+  kibana-setup:
+    image: curlimages/curl:8.7.1
+    container_name: stonegame-kibana-setup
+    depends_on:
+      - kibana
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+
+        echo "Waiting for Kibana API..."
+        until [ "$(curl -s -o /dev/null -w '%{http_code}' http://kibana:5601/api/status)" = "200" ]; do
+          sleep 5
+        done
+
+        echo "Waiting for Kibana to be ready..."
+        until curl -s http://kibana:5601/api/status | grep -q '"available"'; do
+          sleep 5
+        done
+
+        echo "Checking existing data views..."
+        EXISTING=$$(curl -s http://kibana:5601/api/data_views \
+          -H "kbn-xsrf: true")
+
+        echo "$$EXISTING" | grep -q 'Stonegame Logs' && {
+          echo "Data view already exists."
+          exit 0
+        }
+
+        echo "Creating Stonegame Logs data view..."
+        RESPONSE=$$(curl -s -w '\n%{http_code}' -X POST http://kibana:5601/api/data_views/data_view \
+          -H "Content-Type: application/json" \
+          -H "kbn-xsrf: true" \
+          -d '{
+            "data_view": {
+              "name": "Stonegame Logs",
+              "title": "stonegame-logs-*",
+              "timeFieldName": "@timestamp"
+            }
+          }')
+
+        BODY=$$(echo "$$RESPONSE" | sed '$$d')
+        STATUS=$$(echo "$$RESPONSE" | tail -n1)
+
+        echo "$$BODY"
+
+        if [ "$$STATUS" != "200" ] && [ "$$STATUS" != "201" ]; then
+          echo "Failed to create data view. HTTP status: $$STATUS"
+          exit 1
+        fi
+
+        echo "Data view created successfully."
+    restart: "no"
 
 volumes:
   mongo_data:
