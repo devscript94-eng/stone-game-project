@@ -25,6 +25,8 @@ services:
       JWT_SECRET: Q3ZQY3V3b0l4QW5tT3p3Yk1iQm9tZ0x2Y1pZd3JvR2d5Y2x2S2h4dQ==
       DB_URI: mongodb://admin:admin@mongo:27017/stonegame?authSource=admin
       JWT_EXPIRATION: 86400000
+    labels:
+      logging: "true"
 
   frontend:
     build:
@@ -36,6 +38,44 @@ services:
       - "4200:80"
     depends_on:
       - backend
+    labels:
+      logging: "true"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: stonegame-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ports:
+      - "9200:9200"
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.4
+    container_name: stonegame-kibana
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+
+  fluent-bit:
+    image: fluent/fluent-bit:3.0
+    container_name: stonegame-fluent-bit
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+    volumes:
+      - ./monitoring/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - ./monitoring/fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
 
 volumes:
   mongo_data:
+  elastic_data:
