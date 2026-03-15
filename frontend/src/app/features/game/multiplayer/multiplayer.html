@@ -1,27 +1,107 @@
-<h2>Multiplayer</h2>
+<div class="multiplayer">
+  <div class="multiplayer__container">
+    <section class="multiplayer__hero">
+      <h2 class="multiplayer__title">Multiplayer Arena</h2>
+      <p class="multiplayer__subtitle">
+        Face another player in a live duel.
+      </p>
 
-<button (click)="join()">Join Matchmaking</button>
+      @if (viewState === 'idle') {
+        <div class="multiplayer__join">
+          <button
+            class="btn btn--accent"
+            type="button"
+            (click)="join()"
+            [disabled]="isJoining">
+            {{ isJoining ? 'Joining...' : 'Join Matchmaking' }}
+          </button>
+        </div>
+      }
+    </section>
 
-@if (message) {
-  <p>{{ message }}</p>
-}
+    @if (viewState === 'waiting' || viewState === 'playing' || viewState === 'completed') {
+      <section class="multiplayer__arena">
+        <article class="multiplayer__side multiplayer__side--you">
+          <span class="multiplayer__side-label">You</span>
+          <h3 class="multiplayer__player-name">{{ currentUsername }}</h3>
 
-@if (matchState) {
-  <div>
-    <p>Match: {{ matchState.matchId }}</p>
-    <p>Status: {{ matchState.status }}</p>
-    <p>Player 1: {{ matchState.playerOneUsername }}</p>
-    <p>Player 2: {{ matchState.playerTwoUsername }}</p>
-    <p>Player 1 move: {{ matchState.playerOneMove }}</p>
-    <p>Player 2 move: {{ matchState.playerTwoMove }}</p>
-    <p>Result: {{ matchState.result }}</p>
+          @if (myMove) {
+            <p class="multiplayer__player-state">
+              Move: <strong>{{ myMove }}</strong>
+            </p>
+          } @else if (viewState === 'playing') {
+            <p class="multiplayer__player-state">Choose your move</p>
+          } @else {
+            <p class="multiplayer__player-state">Ready</p>
+          }
+        </article>
+
+        <div class="multiplayer__vs">
+          <span>VS</span>
+        </div>
+
+        <article class="multiplayer__side multiplayer__side--opponent">
+          <span class="multiplayer__side-label">Opponent</span>
+
+          @if (opponentUsername) {
+            <h3 class="multiplayer__player-name">{{ opponentUsername }}</h3>
+          } @else {
+            <h3 class="multiplayer__player-name">Waiting...</h3>
+          }
+
+          @if (!opponentUsername) {
+            <div class="multiplayer__loader"></div>
+            <p class="multiplayer__player-state">Waiting for opponent...</p>
+          } @else if (viewState === 'completed') {
+            <p class="multiplayer__player-state">
+              Move: <strong>{{ opponentMove }}</strong>
+            </p>
+          } @else if (opponentMove) {
+            <p class="multiplayer__player-state">Move locked</p>
+          } @else {
+            <div class="multiplayer__loader multiplayer__loader--small"></div>
+            <p class="multiplayer__player-state">Choosing move...</p>
+          }
+        </article>
+      </section>
+    }
+
+    @if (viewState === 'playing') {
+      <section class="multiplayer__actions-panel">
+        <h3 class="section-title">Choose your move</h3>
+        <p class="section-subtitle">
+          Lock your move and wait for your opponent.
+        </p>
+
+        <div class="multiplayer__moves">
+          <button class="multiplayer__move-btn" type="button" (click)="submitMove('STONE')">
+            🪨 Stone
+          </button>
+          <button class="multiplayer__move-btn" type="button" (click)="submitMove('PAPER')">
+            📄 Paper
+          </button>
+          <button class="multiplayer__move-btn" type="button" (click)="submitMove('SCISSORS')">
+            ✂️ Scissors
+          </button>
+        </div>
+      </section>
+    }
+
+    @if (viewState === 'completed') {
+      <section class="multiplayer__result-panel">
+        <span class="multiplayer__result-badge">
+          {{ resultLabel }}
+        </span>
+
+        <div class="multiplayer__result-actions">
+          <button class="btn btn--accent" type="button" (click)="playAgain()">
+            Return to waiting room
+          </button>
+          <button class="btn btn--ghost" type="button" (click)="goHome()">
+            Back to home
+          </button>
+        </div>
+      </section>
+    }
   </div>
-
-  @if (matchState.status === 'WAITING_FOR_MOVES') {
-    <div>
-      <button (click)="submitMove('STONE')">Stone</button>
-      <button (click)="submitMove('PAPER')">Paper</button>
-      <button (click)="submitMove('SCISSORS')">Scissors</button>
-    </div>
-  }
-}
+</div>
