@@ -1,15 +1,62 @@
-<h1>Stone Game</h1>
+<div class="home">
+  <div class="home__container">
+    <section class="home__hero">
+      <span class="home__eyebrow">Stone Game</span>
 
-@if (!authService.isLoggedIn()) {
-  <p>Welcome to the game.</p>
-  <a routerLink="/login">Login</a>
-  <a routerLink="/register">Register</a>
-} @else {
-  <p>Choose a mode:</p>
+      <h1 class="home__title">
+        Challenge the game.<br />
+        Outsmart your opponent.
+      </h1>
 
-  <div>
-    <button routerLink="/single-player">Play vs Computer</button>
-    <button routerLink="/multiplayer">Play Multiplayer</button>
-    <button (click)="logout()">Logout</button>
+      <p class="home__description">
+        A modern stone, paper, scissors experience with smooth gameplay,
+        multiplayer matchmaking, and a clean competitive interface.
+      </p>
+
+      @if (!authService.isLoggedIn()) {
+        <div class="home__actions">
+          <a class="btn btn--primary" routerLink="/login">Login</a>
+          <a class="btn btn--accent" routerLink="/register">Create account</a>
+        </div>
+      } @else {
+        <div class="home__actions">
+          <a class="btn btn--primary" routerLink="/single-player">Play vs Computer</a>
+          <a class="btn btn--accent" routerLink="/multiplayer">Play Multiplayer</a>
+          <button class="btn btn--ghost" type="button" (click)="logout()">Logout</button>
+        </div>
+      }
+    </section>
+
+    <section class="home__panel">
+      <h2 class="home__panel-title">Choose your mode</h2>
+
+      <div class="home__modes">
+        <article class="home__mode">
+          <h3 class="home__mode-title">Single Player</h3>
+          <p class="home__mode-text">
+            Practice your strategy against the computer and sharpen your instincts.
+          </p>
+
+          @if (authService.isLoggedIn()) {
+            <a class="btn btn--primary" routerLink="/single-player">Start solo game</a>
+          } @else {
+            <a class="btn btn--ghost" routerLink="/login">Login to play</a>
+          }
+        </article>
+
+        <article class="home__mode">
+          <h3 class="home__mode-title">Multiplayer</h3>
+          <p class="home__mode-text">
+            Join matchmaking and face a real opponent in a live competitive match.
+          </p>
+
+          @if (authService.isLoggedIn()) {
+            <a class="btn btn--accent" routerLink="/multiplayer">Join multiplayer</a>
+          } @else {
+            <a class="btn btn--ghost" routerLink="/register">Create account</a>
+          }
+        </article>
+      </div>
+    </section>
   </div>
-}
+</div>

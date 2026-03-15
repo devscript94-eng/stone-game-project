@@ -1,0 +1,56 @@
+@use '../../../../styles/theme' as *;
+
+.auth-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: $space-6;
+
+  &__card {
+    @include card;
+    width: min(100%, 460px);
+    padding: $space-6;
+  }
+
+  &__header {
+    margin-bottom: $space-6;
+  }
+
+  &__title {
+    margin: 0 0 $space-2;
+    font-size: 1.8rem;
+    font-weight: 700;
+  }
+
+  &__subtitle {
+    margin: 0;
+    color: $color-text-muted;
+  }
+
+  &__form {
+    display: grid;
+    gap: $space-4;
+  }
+
+  &__actions {
+    display: grid;
+    gap: $space-3;
+    margin-top: $space-2;
+  }
+
+  &__footer {
+    margin-top: $space-6;
+    text-align: center;
+    color: $color-text-muted;
+  }
+
+  &__link {
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      text-decoration: underline;
+    }
+  }
+}

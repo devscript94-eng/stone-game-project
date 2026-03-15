@@ -1,0 +1,207 @@
+@use '../../../../styles/theme' as *;
+
+.multiplayer {
+  min-height: 100dvh;
+  padding: $space-6;
+
+  &__container {
+    width: min(100%, 1100px);
+    margin: 0 auto;
+    display: grid;
+    gap: $space-6;
+  }
+
+  &__hero,
+  &__arena,
+  &__actions-panel,
+  &__result-panel {
+    @include card;
+    padding: $space-6;
+  }
+
+  &__hero {
+    display: grid;
+    gap: $space-3;
+    background:
+      linear-gradient(135deg, rgba(0, 188, 212, 0.08), rgba(255, 152, 0, 0.08)),
+      $color-surface;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: clamp(1.8rem, 3vw, 2.4rem);
+  }
+
+  &__subtitle {
+    margin: 0;
+    color: $color-text-muted;
+  }
+
+  &__join {
+    margin-top: $space-4;
+  }
+
+  &__arena {
+    display: grid;
+    gap: $space-5;
+    align-items: center;
+  }
+
+  &__side {
+    display: grid;
+    gap: $space-3;
+    min-height: 230px;
+    padding: $space-6;
+    border-radius: $radius;
+    border: 1px solid $color-border;
+    background: $color-surface-soft;
+    text-align: center;
+
+    &--you {
+      background:
+        linear-gradient(180deg, rgba(0, 188, 212, 0.1), rgba(255, 255, 255, 0.88)),
+        $color-surface;
+    }
+
+    &--opponent {
+      background:
+        linear-gradient(180deg, rgba(255, 152, 0, 0.08), rgba(255, 255, 255, 0.92)),
+        $color-surface;
+    }
+  }
+
+  &__side-label {
+    justify-self: center;
+    display: inline-flex;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    background: rgba(0, 188, 212, 0.12);
+    color: $color-primary-dark;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &__player-name {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+  }
+
+  &__player-state {
+    margin: 0;
+    color: $color-text-muted;
+    font-size: 1rem;
+
+    strong {
+      color: $color-text;
+    }
+  }
+
+  &__vs {
+    display: grid;
+    place-items: center;
+
+    span {
+      display: inline-grid;
+      place-items: center;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, $color-primary, $color-accent);
+      color: #fff;
+      font-weight: 800;
+      font-size: 1.1rem;
+      box-shadow: $shadow-md;
+    }
+  }
+
+  &__loader {
+    justify-self: center;
+    width: 64px;
+    height: 64px;
+    border: 5px solid rgba(0, 188, 212, 0.18);
+    border-top-color: $color-primary;
+    border-radius: 50%;
+    animation: multiplayer-spin 1s linear infinite;
+
+    &--small {
+      width: 40px;
+      height: 40px;
+      border-width: 4px;
+    }
+  }
+
+  &__actions-panel {
+    display: grid;
+    gap: $space-4;
+  }
+
+  &__moves {
+    display: grid;
+    gap: $space-3;
+    grid-template-columns: 1fr;
+  }
+
+  &__move-btn {
+    @include button-base;
+    background: $color-surface;
+    border: 1px solid $color-border;
+    color: $color-text;
+
+    &:hover {
+      background: #effcff;
+      border-color: rgba(0, 188, 212, 0.55);
+    }
+
+    &:focus-visible {
+      @include focus-ring();
+    }
+  }
+
+  &__result-panel {
+    display: grid;
+    gap: $space-5;
+    justify-items: center;
+    text-align: center;
+  }
+
+  &__result-badge {
+    display: inline-flex;
+    padding: 0.8rem 1.4rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, $color-accent, $color-accent-dark);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 800;
+    box-shadow: 0 12px 24px rgba(255, 152, 0, 0.2);
+  }
+
+  &__result-actions {
+    display: grid;
+    gap: $space-3;
+    width: 100%;
+  }
+
+  @media (min-width: 768px) {
+    &__arena {
+      grid-template-columns: 1fr auto 1fr;
+    }
+
+    &__moves {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    &__result-actions {
+      width: auto;
+      grid-auto-flow: column;
+    }
+  }
+}
+
+@keyframes multiplayer-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

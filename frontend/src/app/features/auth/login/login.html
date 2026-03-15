@@ -1,24 +1,49 @@
-<h2>Login</h2>
+<div class="auth-page">
+  <section class="auth-page__card">
+    <header class="auth-page__header">
+      <h2 class="auth-page__title">Login</h2>
+      <p class="auth-page__subtitle">
+        Sign in to continue your stone game journey.
+      </p>
+    </header>
 
-<form [formGroup]="form" (ngSubmit)="submit()">
-  <div>
-    <label for="email">Email</label>
-    <input id="email" type="email" formControlName="email" placeholder="Email" />
-  </div>
+    <form class="auth-page__form" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-field">
+        <label class="form-field__label" for="email">Email</label>
+        <input
+          class="form-field__input"
+          id="email"
+          type="email"
+          formControlName="email"
+          placeholder="Enter your email" />
+      </div>
 
-  <div>
-    <label for="password">Password</label>
-    <input id="password" type="password" formControlName="password" placeholder="Password" />
-  </div>
+      <div class="form-field">
+        <label class="form-field__label" for="password">Password</label>
+        <input
+          class="form-field__input"
+          id="password"
+          type="password"
+          formControlName="password"
+          placeholder="Enter your password" />
+      </div>
 
-  <button type="submit">Login</button>
-</form>
+      <div class="auth-page__actions">
+        <button class="btn btn--primary btn--block" type="submit">
+          Login
+        </button>
+      </div>
+    </form>
 
-@if (errorMessage) {
-  <p>{{ errorMessage }}</p>
-}
+    @if (errorMessage) {
+      <p class="status-message status-message--error">{{ errorMessage }}</p>
+    }
 
-<p>
-  Don't have an account?
-  <a routerLink="/register">Register</a>
-</p>
+    <footer class="auth-page__footer">
+      <p>
+        Don’t have an account?
+        <a class="auth-page__link" routerLink="/register">Register</a>
+      </p>
+    </footer>
+  </section>
+</div>

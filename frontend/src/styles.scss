@@ -1,1 +1,190 @@
 /* You can add global styles to this file, and also import other style files */
+@use './styles/theme' as *;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family:
+    Inter,
+    Roboto,
+    'Segoe UI',
+    sans-serif;
+  color: $color-text;
+  background:
+    radial-gradient(circle at top left, rgba(0, 188, 212, 0.08), transparent 30%),
+    radial-gradient(circle at top right, rgba(255, 152, 0, 0.1), transparent 28%),
+    $color-bg;
+}
+
+body {
+  line-height: 1.5;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+a {
+  color: $color-primary-dark;
+}
+
+.page-shell {
+  width: min(100% - 2rem, 1120px);
+  margin-inline: auto;
+  padding: $space-8 0;
+}
+
+.page-card {
+  @include card;
+  padding: $space-6;
+}
+
+.section-title {
+  margin: 0 0 $space-2;
+  font-size: clamp(1.5rem, 2vw, 2rem);
+  font-weight: 700;
+}
+
+.section-subtitle {
+  margin: 0 0 $space-6;
+  color: $color-text-muted;
+}
+
+.btn {
+  @include button-base;
+
+  &--primary {
+    background: linear-gradient(135deg, $color-primary, $color-primary-dark);
+    color: #fff;
+    box-shadow: 0 10px 20px rgba(0, 188, 212, 0.22);
+  }
+
+  &--accent {
+    background: linear-gradient(135deg, $color-accent, $color-accent-dark);
+    color: #fff;
+    box-shadow: 0 10px 20px rgba(255, 152, 0, 0.22);
+  }
+
+  &--ghost {
+    background: $color-surface;
+    color: $color-text;
+    border: 1px solid $color-border;
+  }
+
+  &--block {
+    width: 100%;
+  }
+}
+
+.form-field {
+  display: grid;
+  gap: $space-2;
+
+  &__label {
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  &__input {
+    min-height: 48px;
+    padding: 0.85rem 1rem;
+    border: 1px solid $color-border;
+    border-radius: $radius-sm;
+    background: $color-surface;
+    transition:
+      border-color $transition,
+      box-shadow $transition,
+      background-color $transition;
+
+    &::placeholder {
+      color: $color-text-muted;
+    }
+
+    &:hover {
+      border-color: rgba(0, 151, 167, 0.45);
+    }
+
+    &:focus-visible {
+      border-color: $color-primary;
+      @include focus-ring();
+    }
+  }
+
+  &__hint {
+    color: $color-text-muted;
+    font-size: 0.875rem;
+  }
+
+  &__error {
+    color: $color-danger;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+}
+
+.status-message {
+  padding: $space-3 $space-4;
+  border-radius: $radius-sm;
+  font-size: 0.95rem;
+
+  &--error {
+    color: #991b1b;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+  }
+
+  &--info {
+    color: #0f5160;
+    background: #ecfeff;
+    border: 1px solid #b8f3fb;
+  }
+
+  &--success {
+    color: #166534;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+  }
+}
+
+body {
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+h1, h2, h3, .section-title {
+  font-family: "Orbitron", sans-serif;
+  letter-spacing: 0.03em;
+}
+
+body {
+  min-height: 100vh;
+
+  background:
+    radial-gradient(circle at 20% 20%, rgba(0,188,212,0.15), transparent 40%),
+    radial-gradient(circle at 80% 10%, rgba(255,152,0,0.15), transparent 40%),
+    radial-gradient(circle at 50% 90%, rgba(0,188,212,0.1), transparent 40%),
+    #f6fbfc;
+
+  background-attachment: fixed;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+
+  background-image:
+    linear-gradient(rgba(0,188,212,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,188,212,0.04) 1px, transparent 1px);
+
+  background-size: 40px 40px;
+
+  pointer-events: none;
+}

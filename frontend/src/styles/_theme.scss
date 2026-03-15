@@ -1,0 +1,83 @@
+// Theme tokens
+$color-primary: #00bcd4; // cyan
+$color-primary-dark: #0097a7;
+$color-accent: #ff9800; // orange
+$color-accent-dark: #f57c00;
+
+$color-bg: #f6fbfc;
+$color-surface: #ffffff;
+$color-surface-soft: #f0f8fa;
+$color-text: #1f2937;
+$color-text-muted: #6b7280;
+$color-border: #d9e8ec;
+$color-danger: #dc2626;
+$color-success: #16a34a;
+
+$shadow-sm: 0 6px 16px rgba(15, 23, 42, 0.06);
+$shadow-md: 0 12px 30px rgba(15, 23, 42, 0.1);
+
+$radius: 16px;
+$radius-sm: 12px;
+$radius-lg: 24px;
+
+$space-1: 0.25rem;
+$space-2: 0.5rem;
+$space-3: 0.75rem;
+$space-4: 1rem;
+$space-5: 1.25rem;
+$space-6: 1.5rem;
+$space-8: 2rem;
+$space-10: 2.5rem;
+
+$transition: 180ms ease;
+
+@mixin card {
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius;
+  box-shadow: $shadow-sm;
+}
+
+@mixin focus-ring($color: rgba(0, 188, 212, 0.25)) {
+  outline: none;
+  box-shadow: 0 0 0 4px $color;
+}
+
+@mixin button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-2;
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: $radius-sm;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform $transition,
+    background-color $transition,
+    color $transition,
+    box-shadow $transition,
+    opacity $transition;
+  text-decoration: none;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &:focus-visible {
+    @include focus-ring();
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+}

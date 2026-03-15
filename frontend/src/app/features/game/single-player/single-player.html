@@ -1,15 +1,89 @@
-<h2>Play vs Computer</h2>
+<div class="single-player">
+  <div class="single-player__container">
 
-<div>
-  <button (click)="play('STONE')">Stone</button>
-  <button (click)="play('PAPER')">Paper</button>
-  <button (click)="play('SCISSORS')">Scissors</button>
-</div>
+    <section class="single-player__card">
+      <header class="single-player__header">
+        <h2 class="single-player__title">Play vs Computer</h2>
+        <p class="single-player__subtitle">
+          Choose your move and see if you can beat the computer.
+        </p>
+      </header>
 
-@if (result) {
-  <div>
-    <p>Your move: {{ result.playerMove }}</p>
-    <p>Computer move: {{ result.computerMove }}</p>
-    <p>Result: {{ result.result }}</p>
+      <div class="single-player__moves">
+        <button
+          class="single-player__move-btn"
+          type="button"
+          (click)="play('STONE')"
+          [disabled]="isPlaying">
+          🪨 Stone
+        </button>
+
+        <button
+          class="single-player__move-btn"
+          type="button"
+          (click)="play('PAPER')"
+          [disabled]="isPlaying">
+          📄 Paper
+        </button>
+
+        <button
+          class="single-player__move-btn"
+          type="button"
+          (click)="play('SCISSORS')"
+          [disabled]="isPlaying">
+          ✂️ Scissors
+        </button>
+      </div>
+
+      @if (errorMessage) {
+        <p class="status-message status-message--error">{{ errorMessage }}</p>
+      }
+    </section>
+
+    @if (result) {
+      <section class="single-player__card single-player__result">
+        <h3 class="section-title">Round Result</h3>
+
+        <div class="single-player__result-grid">
+          <div class="single-player__stat">
+            <span class="single-player__stat-label">Your Move</span>
+            <span class="single-player__stat-value">
+              {{ result.playerMove }}
+            </span>
+          </div>
+
+          <div class="single-player__stat">
+            <span class="single-player__stat-label">Computer Move</span>
+            <span class="single-player__stat-value">
+              {{ result.computerMove }}
+            </span>
+          </div>
+
+          <div class="single-player__stat">
+            <span class="single-player__stat-label">Result</span>
+
+            <span
+              class="single-player__badge"
+              [ngClass]="{
+                'single-player__badge--win': result.result === 'WIN',
+                'single-player__badge--lose': result.result === 'LOSE',
+                'single-player__badge--draw': result.result === 'DRAW'
+              }"
+            >
+              {{ result.result }}
+            </span>
+          </div>
+        </div>
+
+        <div class="single-player__actions">
+          <button class="btn btn--primary" type="button" (click)="clearResult()">
+            Play again
+          </button>
+          <button class="btn btn--ghost" type="button" (click)="goHome()">
+            Back to home
+          </button>
+        </div>
+      </section>
+    }
   </div>
-}
+</div>
