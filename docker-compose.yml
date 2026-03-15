@@ -26,5 +26,16 @@ services:
       DB_URI: mongodb://admin:admin@mongo:27017/stonegame?authSource=admin
       JWT_EXPIRATION: 86400000
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: stonegame-frontend
+    restart: unless-stopped
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+
 volumes:
   mongo_data:
