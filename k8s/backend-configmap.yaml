@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: stonegame
+data:
+  JWT_SECRET: "Q3ZQY3V3b0l4QW5tT3p3Yk1iQm9tZ0x2Y1pZd3JvR2d5Y2x2S2h4dQ=="
+  JWT_EXPIRATION: "86400000"
+  DB_URI: "mongodb://admin:admin@mongo:27017/stonegame?authSource=admin"
