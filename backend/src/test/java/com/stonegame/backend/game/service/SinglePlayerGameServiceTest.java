@@ -10,6 +10,9 @@ import com.stonegame.backend.user.model.Role;
 import com.stonegame.backend.user.model.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+
+import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -33,7 +36,7 @@ class SinglePlayerGameServiceTest {
         User user = new User();
         user.setId("user-123");
         user.setUsername("john");
-        user.setEmail("john@example.com");
+        user.setEmail("john@company.com");
         user.setRole(Role.USER);
 
         when(computerMoveStrategy.nextMove()).thenReturn(Move.SCISSORS);
@@ -59,5 +62,61 @@ class SinglePlayerGameServiceTest {
         assertEquals(GameResult.WIN, response.result());
 
         verify(repository).save(any(SinglePlayerGame.class));
+    }
+
+    @Test
+    @DisplayName("play should return DRAW when both moves are equal")
+    void play_shouldReturnDraw() {
+        User user = buildUser();
+        when(computerMoveStrategy.nextMove()).thenReturn(Move.STONE);
+
+        SinglePlayerGame saved = new SinglePlayerGame(
+                "user-123", Move.STONE, Move.STONE, GameResult.DRAW, GameMode.SINGLE_PLAYER, Instant.now()
+        );
+        saved.setId("game-1");
+
+        when(repository.save(any(SinglePlayerGame.class))).thenReturn(saved);
+
+        SinglePlayerGameResponse response = service.play(user, Move.STONE);
+
+        assertEquals(GameResult.DRAW, response.result());
+        assertEquals(Move.STONE, response.playerMove());
+        assertEquals(Move.STONE, response.computerMove());
+    }
+
+    @Test
+    @DisplayName("play should persist correct game payload")
+    void play_shouldPersistCorrectPayload() {
+        User user = buildUser();
+        when(computerMoveStrategy.nextMove()).thenReturn(Move.PAPER);
+
+        SinglePlayerGame saved = new SinglePlayerGame(
+                "user-123", Move.STONE, Move.PAPER, GameResult.LOSE, GameMode.SINGLE_PLAYER, Instant.now()
+        );
+        saved.setId("game-2");
+
+        when(repository.save(any(SinglePlayerGame.class))).thenReturn(saved);
+
+        service.play(user, Move.STONE);
+
+        ArgumentCaptor<SinglePlayerGame> captor = ArgumentCaptor.forClass(SinglePlayerGame.class);
+        verify(repository).save(captor.capture());
+
+        SinglePlayerGame persisted = captor.getValue();
+        assertEquals("user-123", persisted.getUserId());
+        assertEquals(Move.STONE, persisted.getPlayerMove());
+        assertEquals(Move.PAPER, persisted.getComputerMove());
+        assertEquals(GameResult.LOSE, persisted.getResult());
+        assertEquals(GameMode.SINGLE_PLAYER, persisted.getGameMode());
+        assertNotNull(persisted.getCreatedAt());
+    }
+
+    private User buildUser() {
+        User user = new User();
+        user.setId("user-123");
+        user.setUsername("john");
+        user.setEmail("john@company.com");
+        user.setRole(Role.USER);
+        return user;
     }
 }
