@@ -40,9 +40,12 @@ public class MatchmakingService {
      * @return matchmaking response
      */
     public synchronized JoinMatchResponse join(User user) {
+        log.info("Matchmaking join requested: userId={}, username={}", user.getId(), user.getUsername());
         WaitingPlayer queued = waitingPlayer.get();
 
         if (queued == null) {
+            log.info("No player currently waiting. Creating a new waiting match for userId={}, username={}",
+                    user.getId(), user.getUsername());
             MultiplayerMatch match = new MultiplayerMatch();
             match.setPlayerOneId(user.getId());
             match.setPlayerOneUsername(user.getUsername());
@@ -50,7 +53,12 @@ public class MatchmakingService {
             match.setCreatedAt(Instant.now());
 
             MultiplayerMatch saved = multiplayerMatchRepository.save(match);
+            log.info("Waiting match created successfully: matchId={}, playerOneId={}, playerOneUsername={}, status={}",
+                    saved.getId(), saved.getPlayerOneId(), saved.getPlayerOneUsername(), saved.getStatus());
+
             waitingPlayer.set(new WaitingPlayer(user, saved.getId()));
+            log.info("User added to matchmaking queue: userId={}, username={}, matchId={}",
+                    user.getId(), user.getUsername(), saved.getId());
 
             return new JoinMatchResponse(
                     saved.getId(),
@@ -59,7 +67,12 @@ public class MatchmakingService {
             );
         }
 
+        log.info("Existing waiting player found: queuedUserId={}, queuedUsername={}, matchId={}",
+                queued.user().getId(), queued.user().getUsername(), queued.matchId());
+
         if (queued.user().getId().equals(user.getId())) {
+            log.warn("User attempted to join matchmaking while already waiting: userId={}, username={}, matchId={}",
+                    user.getId(), user.getUsername(), queued.matchId());
             return new JoinMatchResponse(
                     queued.matchId(),
                     MatchStatus.WAITING_FOR_PLAYER,
@@ -67,15 +80,31 @@ public class MatchmakingService {
             );
         }
 
+        log.info("Matching players: playerOneId={}, playerOneUsername={}, playerTwoId={}, playerTwoUsername={}, matchId={}",
+                queued.user().getId(), queued.user().getUsername(), user.getId(), user.getUsername(), queued.matchId());
+
         MultiplayerMatch match = multiplayerMatchRepository.findById(queued.matchId())
-                .orElseThrow(() -> new IllegalArgumentException("Waiting match not found"));
+                .orElseThrow(() -> {
+                    log.error("Waiting match not found in database: matchId={}, queuedUserId={}, queuedUsername={}",
+                            queued.matchId(), queued.user().getId(), queued.user().getUsername());
+                    return new IllegalArgumentException("Waiting match not found");
+                });
 
         match.setPlayerTwoId(user.getId());
         match.setPlayerTwoUsername(user.getUsername());
         match.setStatus(MatchStatus.WAITING_FOR_MOVES);
 
         MultiplayerMatch saved = multiplayerMatchRepository.save(match);
+        log.info("Match completed successfully: matchId={}, playerOneId={}, playerOneUsername={}, playerTwoId={}, playerTwoUsername={}, status={}",
+                saved.getId(),
+                saved.getPlayerOneId(),
+                saved.getPlayerOneUsername(),
+                saved.getPlayerTwoId(),
+                saved.getPlayerTwoUsername(),
+                saved.getStatus());
+
         waitingPlayer.set(null);
+        log.info("Matchmaking queue cleared after successful match: matchId={}", saved.getId());
 
         MultiplayerMatchResponse response = new MultiplayerMatchResponse(
                 saved.getId(),
@@ -87,7 +116,8 @@ public class MatchmakingService {
                 saved.getResult()
         );
 
-        log.info("############## RESPONSE : {}", response);
+        log.info("Sending MATCH_FOUND notification: matchId={}, playerOneUsername={}, playerTwoUsername={}",
+                saved.getId(), saved.getPlayerOneUsername(), saved.getPlayerTwoUsername());
 
         multiplayerNotificationService.sendMatchUpdateToTopic(
                 saved.getId(),
@@ -98,6 +128,7 @@ public class MatchmakingService {
                 )
         );
 
+        log.info("MATCH_FOUND notification sent successfully: matchId={}", saved.getId());
         return new JoinMatchResponse(
                 saved.getId(),
                 MatchStatus.WAITING_FOR_MOVES,

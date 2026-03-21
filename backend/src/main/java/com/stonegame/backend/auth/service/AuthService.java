@@ -52,12 +52,12 @@ public class AuthService {
         log.info("Register request received for username={}", username);
 
         if (userRepository.existsByEmailIgnoreCase(email)) {
-            log.error("Email {} is already in use", email);
+            log.warn("Email {} is already in use", email);
             throw new IllegalArgumentException("Email is already in use");
         }
 
         if (userRepository.existsByUsernameIgnoreCase(username)) {
-            log.error("Username {} is already in use", username);
+            log.warn("Username {} is already in use", username);
             throw new IllegalArgumentException("Username is already in use");
         }
 
@@ -74,6 +74,7 @@ public class AuthService {
                     savedUser.getRole().name()
             );
 
+            log.info("Registration request succeeded for username={}", username);
             return new AuthResponse(
                     token,
                     savedUser.getId(),
@@ -82,7 +83,7 @@ public class AuthService {
                     savedUser.getRole().name()
             );
         } catch (DuplicateKeyException ex) {
-            log.error("Username {} or email {} is already in use", username, email);
+            log.warn("Username {} or email {} is already in use", username, email);
             throw new IllegalArgumentException("Username or email is already in use");
         }
     }
@@ -94,16 +95,17 @@ public class AuthService {
      * @return auth response containing token and user info
      */
     public AuthResponse login(LoginRequest request) {
+        log.info("Login request for user={}", request.getEmail());
         String email = request.getEmail().trim().toLowerCase();
 
         User user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> {
-                    log.error("user {} not found", email);
+                    log.warn("user {} not found", email);
                     return new BadCredentialsException("Invalid email or password");
                 });
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            log.error("Invalid email {} or password", email);
+            log.warn("Invalid email {} or password", email);
             throw new BadCredentialsException("Invalid email or password");
         }
 
@@ -113,6 +115,7 @@ public class AuthService {
                 user.getRole().name()
         );
 
+        log.info("Login request succeeded for user={}", user.getUsername());
         return new AuthResponse(
                 token,
                 user.getId(),

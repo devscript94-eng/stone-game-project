@@ -7,6 +7,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,27 +20,11 @@ import java.util.List;
 
 /**
  * JWT authentication filter used by Spring Security to authenticate incoming HTTP requests.
- *
- * <p>This filter runs once per request and is responsible for:
- * <ul>
- *     <li>Extracting the JWT token from the {@code Authorization} header.</li>
- *     <li>Validating the token using {@link JwtService}.</li>
- *     <li>Loading the corresponding {@link User} from the database.</li>
- *     <li>Creating a {@link UsernamePasswordAuthenticationToken} if the token is valid.</li>
- *     <li>Setting the authentication in the {@link SecurityContextHolder} so that
- *     the request is treated as authenticated by Spring Security.</li>
- * </ul>
- *
- * <p>The expected format of the header is:
- * <pre>
- * Authorization: Bearer &lt;jwt-token&gt;
- * </pre>
- *
- * <p>If the token is missing, invalid, or the user cannot be found,
- * the request continues through the filter chain without authentication.
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     /**
      * Service responsible for JWT parsing and validation.
@@ -64,20 +50,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /**
      * Filters each incoming HTTP request to perform JWT authentication.
      *
-     * <p>The filter performs the following steps:
-     * <ol>
-     *     <li>Reads the {@code Authorization} header.</li>
-     *     <li>Extracts the JWT token if it starts with {@code Bearer }.</li>
-     *     <li>Extracts the user email (subject) from the token.</li>
-     *     <li>Loads the user from the database.</li>
-     *     <li>Validates the token.</li>
-     *     <li>If valid, creates an authentication object and stores it in the
-     *     {@link SecurityContextHolder}.</li>
-     * </ol>
-     *
-     * <p>If any step fails, the filter simply passes the request to the next filter
-     * without setting authentication.
-     *
      * @param request the current HTTP request
      * @param response the current HTTP response
      * @param filterChain the filter chain to continue processing the request
@@ -89,9 +61,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
+        String method = request.getMethod();
+        String path = request.getRequestURI();
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.debug("Skipping JWT authentication: no Bearer token found for {} {}", method, path);
             filterChain.doFilter(request, response);
             return;
         }
@@ -101,26 +76,54 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             email = jwtService.extractSubject(token);
+            log.debug("JWT subject extracted successfully for {} {}: email={}", method, path, email);
         } catch (Exception ex) {
+            log.warn("JWT subject extraction failed for {} {}: error={}", method, path, ex.getMessage());
             filterChain.doFilter(request, response);
             return;
         }
 
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            User user = userRepository.findByEmailIgnoreCase(email).orElse(null);
-
-            if (user != null && jwtService.isTokenValid(token, user.getEmail())) {
-                var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
-
-                var authentication = new UsernamePasswordAuthenticationToken(
-                        user,
-                        null,
-                        authorities
-                );
-
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
+        if (email == null) {
+            log.warn("JWT subject is null for {} {}", method, path);
+            filterChain.doFilter(request, response);
+            return;
         }
+
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            log.debug("Security context already populated for {} {}. Skipping JWT authentication.", method, path);
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        User user = userRepository.findByEmailIgnoreCase(email).orElse(null);
+
+        if (user == null) {
+            log.warn("JWT authentication failed: user not found for email={} on {} {}", email, method, path);
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        boolean tokenValid = jwtService.isTokenValid(token, user.getEmail());
+
+        if (!tokenValid) {
+            log.warn("JWT authentication failed: invalid token for userId={}, email={} on {} {}",
+                    user.getId(), user.getEmail(), method, path);
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+
+        var authentication = new UsernamePasswordAuthenticationToken(
+                user,
+                null,
+                authorities
+        );
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        log.info("JWT authentication successful: userId={}, email={}, role={}, method={}, path={}",
+                user.getId(), user.getEmail(), user.getRole(), method, path);
 
         filterChain.doFilter(request, response);
     }
