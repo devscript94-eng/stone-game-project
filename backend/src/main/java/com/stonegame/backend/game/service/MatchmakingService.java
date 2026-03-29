@@ -23,6 +23,11 @@ public class MatchmakingService {
 
     private static final Logger log = LoggerFactory.getLogger(MatchmakingService.class);
 
+    private static final String EVENT_MATCH_FOUND = "MATCH_FOUND";
+    private static final String MESSAGE_WAITING = "Waiting for another player";
+    private static final String MESSAGE_ALREADY_WAITING = "Already waiting for another player";
+    private static final String MESSAGE_MATCH_FOUND = "Match found";
+
     private final MultiplayerMatchRepository multiplayerMatchRepository;
     private final MultiplayerNotificationService multiplayerNotificationService;
     private final AtomicReference<WaitingPlayer> waitingPlayer = new AtomicReference<>(null);
@@ -41,98 +46,164 @@ public class MatchmakingService {
      */
     public synchronized JoinMatchResponse join(User user) {
         log.info("Matchmaking join requested: userId={}, username={}", user.getId(), user.getUsername());
-        WaitingPlayer queued = waitingPlayer.get();
 
-        if (queued == null) {
-            log.info("No player currently waiting. Creating a new waiting match for userId={}, username={}",
-                    user.getId(), user.getUsername());
-            MultiplayerMatch match = new MultiplayerMatch();
-            match.setPlayerOneId(user.getId());
-            match.setPlayerOneUsername(user.getUsername());
-            match.setStatus(MatchStatus.WAITING_FOR_PLAYER);
-            match.setCreatedAt(Instant.now());
+        WaitingPlayer queuedPlayer = waitingPlayer.get();
 
-            MultiplayerMatch saved = multiplayerMatchRepository.save(match);
-            log.info("Waiting match created successfully: matchId={}, playerOneId={}, playerOneUsername={}, status={}",
-                    saved.getId(), saved.getPlayerOneId(), saved.getPlayerOneUsername(), saved.getStatus());
-
-            waitingPlayer.set(new WaitingPlayer(user, saved.getId()));
-            log.info("User added to matchmaking queue: userId={}, username={}, matchId={}",
-                    user.getId(), user.getUsername(), saved.getId());
-
-            return new JoinMatchResponse(
-                    saved.getId(),
-                    MatchStatus.WAITING_FOR_PLAYER,
-                    "Waiting for another player"
-            );
+        if (noPlayerWaiting(queuedPlayer)) {
+            return createWaitingMatch(user);
         }
 
-        log.info("Existing waiting player found: queuedUserId={}, queuedUsername={}, matchId={}",
-                queued.user().getId(), queued.user().getUsername(), queued.matchId());
-
-        if (queued.user().getId().equals(user.getId())) {
-            log.warn("User attempted to join matchmaking while already waiting: userId={}, username={}, matchId={}",
-                    user.getId(), user.getUsername(), queued.matchId());
-            return new JoinMatchResponse(
-                    queued.matchId(),
-                    MatchStatus.WAITING_FOR_PLAYER,
-                    "Already waiting for another player"
-            );
+        if (isSameQueuedUser(queuedPlayer, user)) {
+            return alreadyWaitingResponse(user, queuedPlayer);
         }
 
+        return matchPlayers(user, queuedPlayer);
+    }
+
+    private JoinMatchResponse createWaitingMatch(User user) {
+        log.info("No player waiting. Creating waiting match: userId={}, username={}",
+                user.getId(), user.getUsername());
+
+        MultiplayerMatch matchToCreate = buildWaitingMatch(user);
+        MultiplayerMatch savedMatch = saveNewWaitingMatch(matchToCreate);
+
+        addPlayerToQueue(user, savedMatch.getId());
+
+        return new JoinMatchResponse(
+                savedMatch.getId(),
+                MatchStatus.WAITING_FOR_PLAYER,
+                MESSAGE_WAITING
+        );
+    }
+
+    private MultiplayerMatch buildWaitingMatch(User user) {
+        MultiplayerMatch match = new MultiplayerMatch();
+        match.setPlayerOneId(user.getId());
+        match.setPlayerOneUsername(user.getUsername());
+        match.setStatus(MatchStatus.WAITING_FOR_PLAYER);
+        match.setCreatedAt(Instant.now());
+        return match;
+    }
+
+    private MultiplayerMatch saveNewWaitingMatch(MultiplayerMatch match) {
+        MultiplayerMatch savedMatch = multiplayerMatchRepository.save(match);
+
+        log.info("Waiting match created: matchId={}, playerOneId={}, playerOneUsername={}, status={}",
+                savedMatch.getId(),
+                savedMatch.getPlayerOneId(),
+                savedMatch.getPlayerOneUsername(),
+                savedMatch.getStatus());
+
+        return savedMatch;
+    }
+
+    private void addPlayerToQueue(User user, String matchId) {
+        waitingPlayer.set(new WaitingPlayer(user, matchId));
+
+        log.info("User added to matchmaking queue: userId={}, username={}, matchId={}",
+                user.getId(), user.getUsername(), matchId);
+    }
+
+    private JoinMatchResponse alreadyWaitingResponse(User user, WaitingPlayer queuedPlayer) {
+        log.warn("User already waiting in matchmaking queue: userId={}, username={}, matchId={}",
+                user.getId(), user.getUsername(), queuedPlayer.matchId());
+
+        return new JoinMatchResponse(
+                queuedPlayer.matchId(),
+                MatchStatus.WAITING_FOR_PLAYER,
+                MESSAGE_ALREADY_WAITING
+        );
+    }
+
+    private JoinMatchResponse matchPlayers(User joiningUser, WaitingPlayer queuedPlayer) {
         log.info("Matching players: playerOneId={}, playerOneUsername={}, playerTwoId={}, playerTwoUsername={}, matchId={}",
-                queued.user().getId(), queued.user().getUsername(), user.getId(), user.getUsername(), queued.matchId());
+                queuedPlayer.user().getId(),
+                queuedPlayer.user().getUsername(),
+                joiningUser.getId(),
+                joiningUser.getUsername(),
+                queuedPlayer.matchId());
 
-        MultiplayerMatch match = multiplayerMatchRepository.findById(queued.matchId())
+        MultiplayerMatch existingMatch = loadWaitingMatch(queuedPlayer);
+        updateMatchWithSecondPlayer(existingMatch, joiningUser);
+
+        MultiplayerMatch savedMatch = saveMatchedPlayers(existingMatch);
+        clearQueue(savedMatch.getId());
+
+        MultiplayerMatchResponse response = toResponse(savedMatch);
+        notifyMatchFound(savedMatch, response);
+
+        return new JoinMatchResponse(
+                savedMatch.getId(),
+                MatchStatus.WAITING_FOR_MOVES,
+                MESSAGE_MATCH_FOUND
+        );
+    }
+
+    private MultiplayerMatch loadWaitingMatch(WaitingPlayer queuedPlayer) {
+        return multiplayerMatchRepository.findById(queuedPlayer.matchId())
                 .orElseThrow(() -> {
-                    log.error("Waiting match not found in database: matchId={}, queuedUserId={}, queuedUsername={}",
-                            queued.matchId(), queued.user().getId(), queued.user().getUsername());
+                    log.error("Waiting match not found: matchId={}, queuedUserId={}, queuedUsername={}",
+                            queuedPlayer.matchId(),
+                            queuedPlayer.user().getId(),
+                            queuedPlayer.user().getUsername());
                     return new IllegalArgumentException("Waiting match not found");
                 });
+    }
 
+    private void updateMatchWithSecondPlayer(MultiplayerMatch match, User user) {
         match.setPlayerTwoId(user.getId());
         match.setPlayerTwoUsername(user.getUsername());
         match.setStatus(MatchStatus.WAITING_FOR_MOVES);
+    }
 
-        MultiplayerMatch saved = multiplayerMatchRepository.save(match);
-        log.info("Match completed successfully: matchId={}, playerOneId={}, playerOneUsername={}, playerTwoId={}, playerTwoUsername={}, status={}",
-                saved.getId(),
-                saved.getPlayerOneId(),
-                saved.getPlayerOneUsername(),
-                saved.getPlayerTwoId(),
-                saved.getPlayerTwoUsername(),
-                saved.getStatus());
+    private MultiplayerMatch saveMatchedPlayers(MultiplayerMatch match) {
+        MultiplayerMatch savedMatch = multiplayerMatchRepository.save(match);
 
+        log.info("Players matched successfully: matchId={}, playerOneId={}, playerOneUsername={}, playerTwoId={}, playerTwoUsername={}, status={}",
+                savedMatch.getId(),
+                savedMatch.getPlayerOneId(),
+                savedMatch.getPlayerOneUsername(),
+                savedMatch.getPlayerTwoId(),
+                savedMatch.getPlayerTwoUsername(),
+                savedMatch.getStatus());
+
+        return savedMatch;
+    }
+
+    private void clearQueue(String matchId) {
         waitingPlayer.set(null);
-        log.info("Matchmaking queue cleared after successful match: matchId={}", saved.getId());
+        log.info("Matchmaking queue cleared: matchId={}", matchId);
+    }
 
-        MultiplayerMatchResponse response = new MultiplayerMatchResponse(
-                saved.getId(),
-                saved.getPlayerOneUsername(),
-                saved.getPlayerTwoUsername(),
-                saved.getPlayerOneMove(),
-                saved.getPlayerTwoMove(),
-                saved.getStatus(),
-                saved.getResult()
-        );
-
-        log.info("Sending MATCH_FOUND notification: matchId={}, playerOneUsername={}, playerTwoUsername={}",
-                saved.getId(), saved.getPlayerOneUsername(), saved.getPlayerTwoUsername());
+    private void notifyMatchFound(MultiplayerMatch match, MultiplayerMatchResponse response) {
+        log.info("Sending match found notification: matchId={}, playerOneUsername={}, playerTwoUsername={}",
+                match.getId(), match.getPlayerOneUsername(), match.getPlayerTwoUsername());
 
         multiplayerNotificationService.sendMatchUpdateToTopic(
-                saved.getId(),
-                new MultiplayerEventResponse(
-                        "MATCH_FOUND",
-                        saved.getId(),
-                        response
-                )
+                match.getId(),
+                new MultiplayerEventResponse(EVENT_MATCH_FOUND, match.getId(), response)
         );
 
-        log.info("MATCH_FOUND notification sent successfully: matchId={}", saved.getId());
-        return new JoinMatchResponse(
-                saved.getId(),
-                MatchStatus.WAITING_FOR_MOVES,
-                "Match found"
+        log.info("Match found notification sent successfully: matchId={}", match.getId());
+    }
+
+    private boolean noPlayerWaiting(WaitingPlayer queuedPlayer) {
+        return queuedPlayer == null;
+    }
+
+    private boolean isSameQueuedUser(WaitingPlayer queuedPlayer, User user) {
+        return queuedPlayer.user().getId().equals(user.getId());
+    }
+
+    private MultiplayerMatchResponse toResponse(MultiplayerMatch match) {
+        return new MultiplayerMatchResponse(
+                match.getId(),
+                match.getPlayerOneUsername(),
+                match.getPlayerTwoUsername(),
+                match.getPlayerOneMove(),
+                match.getPlayerTwoMove(),
+                match.getStatus(),
+                match.getResult()
         );
     }
 }

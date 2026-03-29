@@ -22,6 +22,9 @@ public class MultiplayerService {
 
     private static final Logger log = LoggerFactory.getLogger(MultiplayerService.class);
 
+    private static final String EVENT_MATCH_COMPLETED = "MATCH_COMPLETED";
+    private static final String EVENT_MOVE_SUBMITTED = "MOVE_SUBMITTED";
+
     private final MultiplayerMatchRepository multiplayerMatchRepository;
     private final GameRulesService gameRulesService;
     private final MultiplayerNotificationService multiplayerNotificationService;
@@ -42,20 +45,15 @@ public class MultiplayerService {
      * @return match state
      */
     public MultiplayerMatchResponse getMatch(String matchId, User user) {
-        log.info("Match state requested: matchId={}, userId={}, username={}",
-                matchId, user.getId(), user.getUsername());
+        log.info("Match state requested: matchId={}, userId={}", matchId, user.getId());
 
         MultiplayerMatch match = findAuthorizedMatch(matchId, user);
+        MultiplayerMatchResponse response = toResponse(match);
 
-        log.info("Match state returned successfully: matchId={}, userId={}, status={}, playerOneMove={}, playerTwoMove={}, result={}",
-                match.getId(),
-                user.getId(),
-                match.getStatus(),
-                match.getPlayerOneMove(),
-                match.getPlayerTwoMove(),
-                match.getResult());
+        log.info("Match state returned: matchId={}, userId={}, status={}, result={}",
+                match.getId(), user.getId(), match.getStatus(), match.getResult());
 
-        return toResponse(match);
+        return response;
     }
 
     /**
@@ -67,119 +65,159 @@ public class MultiplayerService {
      * @return updated match state
      */
     public MultiplayerMatchResponse submitMove(String matchId, User user, Move move) {
-        log.info("Move submission requested: matchId={}, userId={}, username={}, move={}",
-                matchId, user.getId(), user.getUsername(), move);
+        log.info("Move submission requested: matchId={}, userId={}, move={}", matchId, user.getId(), move);
 
         MultiplayerMatch match = findAuthorizedMatch(matchId, user);
 
-        if (match.getStatus() != MatchStatus.WAITING_FOR_MOVES) {
-            log.warn("Move submission rejected because match is not ready: matchId={}, userId={}, currentStatus={}",
-                    matchId, user.getId(), match.getStatus());
-            throw new IllegalArgumentException("Match is not ready for moves");
-        }
+        validateMatchIsReadyForMoves(match, user);
+        applyPlayerMove(match, user, move);
+        completeMatchIfReady(match);
 
-        if (user.getId().equals(match.getPlayerOneId())) {
-            if (match.getPlayerOneMove() != null) {
-                log.warn("Duplicate move submission rejected for player one: matchId={}, userId={}, existingMove={}",
-                        matchId, user.getId(), match.getPlayerOneMove());
-                throw new IllegalArgumentException("Player one already submitted a move");
-            }
-            match.setPlayerOneMove(move);
-            log.info("Player one move recorded: matchId={}, userId={}, move={}",
-                    matchId, user.getId(), move);
-        } else if (user.getId().equals(match.getPlayerTwoId())) {
-            if (match.getPlayerTwoMove() != null) {
-                log.warn("Duplicate move submission rejected for player two: matchId={}, userId={}, existingMove={}",
-                        matchId, user.getId(), match.getPlayerTwoMove());
-                throw new IllegalArgumentException("Player two already submitted a move");
-            }
-            match.setPlayerTwoMove(move);
-            log.info("Player two move recorded: matchId={}, userId={}, move={}",
-                    matchId, user.getId(), move);
-        }
+        MultiplayerMatch savedMatch = saveMatch(match);
+        MultiplayerMatchResponse response = toResponse(savedMatch);
 
-        if (match.getPlayerOneMove() != null && match.getPlayerTwoMove() != null) {
-            log.info("Both moves submitted. Evaluating match result: matchId={}, playerOneMove={}, playerTwoMove={}",
-                    matchId, match.getPlayerOneMove(), match.getPlayerTwoMove());
-
-            GameResult playerOneResult =
-                    gameRulesService.evaluate(match.getPlayerOneMove(), match.getPlayerTwoMove());
-
-            MultiplayerResult result = switch (playerOneResult) {
-                case WIN -> MultiplayerResult.PLAYER_ONE_WIN;
-                case LOSE -> MultiplayerResult.PLAYER_TWO_WIN;
-                case DRAW -> MultiplayerResult.DRAW;
-            };
-
-            match.setResult(result);
-            match.setStatus(MatchStatus.COMPLETED);
-
-            log.info("Match completed: matchId={}, result={}, status={}",
-                    matchId, result, match.getStatus());
-        } else {
-            log.info("Move recorded, waiting for the second player: matchId={}, playerOneMove={}, playerTwoMove={}, status={}",
-                    matchId, match.getPlayerOneMove(), match.getPlayerTwoMove(), match.getStatus());
-        }
-
-        MultiplayerMatch saved = multiplayerMatchRepository.save(match);
-        log.info("Match state saved successfully: matchId={}, status={}, result={}, playerOneMove={}, playerTwoMove={}",
-                saved.getId(),
-                saved.getStatus(),
-                saved.getResult(),
-                saved.getPlayerOneMove(),
-                saved.getPlayerTwoMove());
-
-        MultiplayerMatchResponse response = toResponse(saved);
-
-        if (saved.getStatus() == MatchStatus.COMPLETED) {
-            log.info("Sending MATCH_COMPLETED notification: matchId={}, result={}",
-                    saved.getId(), saved.getResult());
-
-            multiplayerNotificationService.sendMatchUpdateToTopic(
-                    saved.getId(),
-                    new MultiplayerEventResponse("MATCH_COMPLETED", saved.getId(), response)
-            );
-
-            log.info("MATCH_COMPLETED notification sent successfully: matchId={}", saved.getId());
-        } else {
-            log.info("Sending MOVE_SUBMITTED notification: matchId={}", saved.getId());
-
-            multiplayerNotificationService.sendMatchUpdateToTopic(
-                    saved.getId(),
-                    new MultiplayerEventResponse("MOVE_SUBMITTED", saved.getId(), response)
-            );
-
-            log.info("MOVE_SUBMITTED notification sent successfully: matchId={}", saved.getId());
-        }
+        publishMatchEvent(savedMatch, response);
 
         return response;
     }
 
     private MultiplayerMatch findAuthorizedMatch(String matchId, User user) {
-        log.info("Loading match for authorization: matchId={}, userId={}", matchId, user.getId());
+        MultiplayerMatch match = loadMatch(matchId, user.getId());
+        ensureUserCanAccessMatch(match, user);
+        return match;
+    }
 
-        MultiplayerMatch match = multiplayerMatchRepository.findById(matchId)
+    private MultiplayerMatch loadMatch(String matchId, String userId) {
+        return multiplayerMatchRepository.findById(matchId)
                 .orElseThrow(() -> {
-                    log.warn("Match not found: matchId={}, userId={}", matchId, user.getId());
+                    log.warn("Match not found: matchId={}, userId={}", matchId, userId);
                     return new IllegalArgumentException("Match not found");
                 });
+    }
 
-        boolean isAllowed =
-                user.getId().equals(match.getPlayerOneId()) ||
-                        user.getId().equals(match.getPlayerTwoId());
+    private void ensureUserCanAccessMatch(MultiplayerMatch match, User user) {
+        boolean isAllowed = isPlayerOne(match, user) || isPlayerTwo(match, user);
 
         if (!isAllowed) {
-            log.warn("Unauthorized match access attempt: matchId={}, userId={}, username={}, playerOneId={}, playerTwoId={}",
-                    matchId,
-                    user.getId(),
-                    user.getUsername(),
-                    match.getPlayerOneId(),
-                    match.getPlayerTwoId());
+            log.warn("Unauthorized match access attempt: matchId={}, userId={}, playerOneId={}, playerTwoId={}",
+                    match.getId(), user.getId(), match.getPlayerOneId(), match.getPlayerTwoId());
             throw new UnauthorizedException("User not allowed to access this match");
         }
+    }
 
-        log.info("User authorized for match access: matchId={}, userId={}", matchId, user.getId());
-        return match;
+    private void validateMatchIsReadyForMoves(MultiplayerMatch match, User user) {
+        if (match.getStatus() != MatchStatus.WAITING_FOR_MOVES) {
+            log.warn("Move submission rejected: match not ready for moves, matchId={}, userId={}, status={}",
+                    match.getId(), user.getId(), match.getStatus());
+            throw new IllegalArgumentException("Match is not ready for moves");
+        }
+    }
+
+    private void applyPlayerMove(MultiplayerMatch match, User user, Move move) {
+        if (isPlayerOne(match, user)) {
+            applyPlayerOneMove(match, user, move);
+            return;
+        }
+
+        if (isPlayerTwo(match, user)) {
+            applyPlayerTwoMove(match, user, move);
+        }
+    }
+
+    private void applyPlayerOneMove(MultiplayerMatch match, User user, Move move) {
+        if (match.getPlayerOneMove() != null) {
+            log.warn("Duplicate move submission rejected for player one: matchId={}, userId={}, existingMove={}",
+                    match.getId(), user.getId(), match.getPlayerOneMove());
+            throw new IllegalArgumentException("Player one already submitted a move");
+        }
+
+        match.setPlayerOneMove(move);
+        log.info("Player one move recorded: matchId={}, userId={}, move={}",
+                match.getId(), user.getId(), move);
+    }
+
+    private void applyPlayerTwoMove(MultiplayerMatch match, User user, Move move) {
+        if (match.getPlayerTwoMove() != null) {
+            log.warn("Duplicate move submission rejected for player two: matchId={}, userId={}, existingMove={}",
+                    match.getId(), user.getId(), match.getPlayerTwoMove());
+            throw new IllegalArgumentException("Player two already submitted a move");
+        }
+
+        match.setPlayerTwoMove(move);
+        log.info("Player two move recorded: matchId={}, userId={}, move={}",
+                match.getId(), user.getId(), move);
+    }
+
+    private void completeMatchIfReady(MultiplayerMatch match) {
+        if (!bothMovesSubmitted(match)) {
+            log.info("Move recorded, waiting for second player: matchId={}, playerOneMove={}, playerTwoMove={}",
+                    match.getId(), match.getPlayerOneMove(), match.getPlayerTwoMove());
+            return;
+        }
+
+        log.info("Both moves submitted. Evaluating match result: matchId={}, playerOneMove={}, playerTwoMove={}",
+                match.getId(), match.getPlayerOneMove(), match.getPlayerTwoMove());
+
+        MultiplayerResult result = evaluateMultiplayerResult(match);
+        match.setResult(result);
+        match.setStatus(MatchStatus.COMPLETED);
+
+        log.info("Match completed: matchId={}, result={}", match.getId(), result);
+    }
+
+    private MultiplayerResult evaluateMultiplayerResult(MultiplayerMatch match) {
+        GameResult playerOneResult = gameRulesService.evaluate(
+                match.getPlayerOneMove(),
+                match.getPlayerTwoMove()
+        );
+
+        return switch (playerOneResult) {
+            case WIN -> MultiplayerResult.PLAYER_ONE_WIN;
+            case LOSE -> MultiplayerResult.PLAYER_TWO_WIN;
+            case DRAW -> MultiplayerResult.DRAW;
+        };
+    }
+
+    private MultiplayerMatch saveMatch(MultiplayerMatch match) {
+        MultiplayerMatch savedMatch = multiplayerMatchRepository.save(match);
+
+        log.info("Match state saved: matchId={}, status={}, result={}, playerOneMove={}, playerTwoMove={}",
+                savedMatch.getId(),
+                savedMatch.getStatus(),
+                savedMatch.getResult(),
+                savedMatch.getPlayerOneMove(),
+                savedMatch.getPlayerTwoMove());
+
+        return savedMatch;
+    }
+
+    private void publishMatchEvent(MultiplayerMatch match, MultiplayerMatchResponse response) {
+        String eventType = isCompleted(match) ? EVENT_MATCH_COMPLETED : EVENT_MOVE_SUBMITTED;
+
+        log.info("Sending multiplayer event: eventType={}, matchId={}", eventType, match.getId());
+
+        multiplayerNotificationService.sendMatchUpdateToTopic(
+                match.getId(),
+                new MultiplayerEventResponse(eventType, match.getId(), response)
+        );
+
+        log.info("Multiplayer event sent successfully: eventType={}, matchId={}", eventType, match.getId());
+    }
+
+    private boolean bothMovesSubmitted(MultiplayerMatch match) {
+        return match.getPlayerOneMove() != null && match.getPlayerTwoMove() != null;
+    }
+
+    private boolean isCompleted(MultiplayerMatch match) {
+        return match.getStatus() == MatchStatus.COMPLETED;
+    }
+
+    private boolean isPlayerOne(MultiplayerMatch match, User user) {
+        return user.getId().equals(match.getPlayerOneId());
+    }
+
+    private boolean isPlayerTwo(MultiplayerMatch match, User user) {
+        return user.getId().equals(match.getPlayerTwoId());
     }
 
     private MultiplayerMatchResponse toResponse(MultiplayerMatch match) {
