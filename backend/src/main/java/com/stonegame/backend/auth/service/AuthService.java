@@ -18,7 +18,13 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class AuthService {
+
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);
+
+    private static final String INVALID_CREDENTIALS_MESSAGE = "Invalid email or password";
+    private static final String EMAIL_ALREADY_USED_MESSAGE = "Email is already in use";
+    private static final String USERNAME_ALREADY_USED_MESSAGE = "Username is already in use";
+    private static final String DUPLICATE_USER_MESSAGE = "Username or email is already in use";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -46,45 +52,25 @@ public class AuthService {
      * @return auth response containing token and user info
      */
     public AuthResponse register(RegisterRequest request) {
-        String email = request.getEmail().trim().toLowerCase();
-        String username = request.getUsername().trim();
+        String email = normalizeEmail(request.getEmail());
+        String username = normalizeUsername(request.getUsername());
 
-        log.info("Register request received for username={}", username);
+        log.info("Registration requested: username={}, email={}", username, email);
 
-        if (userRepository.existsByEmailIgnoreCase(email)) {
-            log.warn("Email {} is already in use", email);
-            throw new IllegalArgumentException("Email is already in use");
-        }
+        ensureEmailIsAvailable(email);
+        ensureUsernameIsAvailable(username);
 
-        if (userRepository.existsByUsernameIgnoreCase(username)) {
-            log.warn("Username {} is already in use", username);
-            throw new IllegalArgumentException("Username is already in use");
-        }
-
-        String passwordHash = passwordEncoder.encode(request.getPassword());
-
-        User user = new User(username, email, passwordHash, Role.USER);
+        User userToCreate = buildUser(username, email, request.getPassword());
 
         try {
-            User savedUser = userRepository.save(user);
+            User savedUser = userRepository.save(userToCreate);
+            log.info("Registration succeeded: userId={}, username={}, email={}",
+                    savedUser.getId(), savedUser.getUsername(), savedUser.getEmail());
 
-            String token = jwtService.generateToken(
-                    savedUser.getEmail(),
-                    savedUser.getId(),
-                    savedUser.getRole().name()
-            );
-
-            log.info("Registration request succeeded for username={}", username);
-            return new AuthResponse(
-                    token,
-                    savedUser.getId(),
-                    savedUser.getUsername(),
-                    savedUser.getEmail(),
-                    savedUser.getRole().name()
-            );
+            return buildAuthResponse(savedUser);
         } catch (DuplicateKeyException ex) {
-            log.warn("Username {} or email {} is already in use", username, email);
-            throw new IllegalArgumentException("Username or email is already in use");
+            log.warn("Registration rejected due to duplicate key: username={}, email={}", username, email);
+            throw new IllegalArgumentException(DUPLICATE_USER_MESSAGE);
         }
     }
 
@@ -95,32 +81,77 @@ public class AuthService {
      * @return auth response containing token and user info
      */
     public AuthResponse login(LoginRequest request) {
-        log.info("Login request for user={}", request.getEmail());
-        String email = request.getEmail().trim().toLowerCase();
+        String email = normalizeEmail(request.getEmail());
 
-        User user = userRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> {
-                    log.warn("user {} not found", email);
-                    return new BadCredentialsException("Invalid email or password");
-                });
+        log.info("Login requested: email={}", email);
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            log.warn("Invalid email {} or password", email);
-            throw new BadCredentialsException("Invalid email or password");
+        User user = findUserByEmail(email);
+        validatePassword(request.getPassword(), user, email);
+
+        log.info("Login succeeded: userId={}, username={}, email={}",
+                user.getId(), user.getUsername(), user.getEmail());
+
+        return buildAuthResponse(user);
+    }
+
+    private String normalizeEmail(String email) {
+        return email.trim().toLowerCase();
+    }
+
+    private String normalizeUsername(String username) {
+        return username.trim();
+    }
+
+    private void ensureEmailIsAvailable(String email) {
+        if (userRepository.existsByEmailIgnoreCase(email)) {
+            log.warn("Registration rejected: email already in use, email={}", email);
+            throw new IllegalArgumentException(EMAIL_ALREADY_USED_MESSAGE);
         }
+    }
 
-        String token = jwtService.generateToken(
-                user.getEmail(),
-                user.getId(),
-                user.getRole().name()
-        );
+    private void ensureUsernameIsAvailable(String username) {
+        if (userRepository.existsByUsernameIgnoreCase(username)) {
+            log.warn("Registration rejected: username already in use, username={}", username);
+            throw new IllegalArgumentException(USERNAME_ALREADY_USED_MESSAGE);
+        }
+    }
 
-        log.info("Login request succeeded for user={}", user.getUsername());
+    private User buildUser(String username, String email, String rawPassword) {
+        String passwordHash = passwordEncoder.encode(rawPassword);
+        return new User(username, email, passwordHash, Role.USER);
+    }
+
+    private User findUserByEmail(String email) {
+        return userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> {
+                    log.warn("Login failed: email={}", email);
+                    return new BadCredentialsException(INVALID_CREDENTIALS_MESSAGE);
+                });
+    }
+
+    private void validatePassword(String rawPassword, User user, String email) {
+        if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+            log.warn("Login failed: email={}", email);
+            throw new BadCredentialsException(INVALID_CREDENTIALS_MESSAGE);
+        }
+    }
+
+    private AuthResponse buildAuthResponse(User user) {
+        String token = generateToken(user);
+
         return new AuthResponse(
                 token,
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
+                user.getRole().name()
+        );
+    }
+
+    private String generateToken(User user) {
+        return jwtService.generateToken(
+                user.getEmail(),
+                user.getId(),
                 user.getRole().name()
         );
     }
