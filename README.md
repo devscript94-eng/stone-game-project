@@ -353,54 +353,63 @@ Container images and deployment artifacts should be stored in a dedicated regist
 
 The current backend is intentionally simple, but several resilience improvements could make it more production-ready.
 
+---
 #### Database failure handling
 Core flows such as registration, login, single-player persistence, matchmaking, and multiplayer state updates depend on MongoDB. In a production setup, transient database failures should be handled more explicitly with retries where safe, combined with clear error logging and monitoring.
 
 **Example in Stone Game**:
 if MongoDB is temporarily unavailable when saving a multiplayer match, the backend should fail fast, log the incident clearly, and expose metrics/alerts instead of silently degrading.
 
+---
 #### Timeouts for external interactions
 Any interaction with external systems should have explicit timeouts to avoid blocking request threads.
 
 **Example in Stone Game**:
 sending WebSocket notifications through MultiplayerNotificationService should be bounded and monitored so notification issues do not block the full multiplayer flow.
 
+---
 #### Retries for transient failures
 Retries should only be applied to operations that may fail temporarily and are safe to repeat.
 
 **Example in Stone Game**:
 a retry policy could be applied when publishing a multiplayer event or when accessing MongoDB for a temporary connectivity issue, but not blindly for all operations.
 
+---
 #### Circuit Breaker for unstable dependencies
 A circuit breaker can stop repeatedly calling a failing dependency and let the system recover.
 
 **Example in Stone Game**:
 if notification delivery repeatedly fails, a circuit breaker around MultiplayerNotificationService could prevent repeated failures from impacting the match lifecycle too aggressively.
 
+---
 #### Fallback behavior
 When a non-critical dependency fails, the system can continue in degraded mode instead of fully failing.
 
 **Example in Stone Game**:
 if a real-time notification cannot be sent, the match state can still be persisted in MongoDB, and players can recover the latest state through the REST endpoint getMatch().
 
+---
 #### Health checks and Kubernetes probes
 The backend should expose readiness and liveness probes to support self-healing and safer deployments.
 
 **Example in Stone Game**:
 readiness should fail when the application cannot properly serve requests, allowing Kubernetes to stop routing traffic to an unhealthy instance.
 
+---
 #### Graceful degradation of multiplayer state management
 The current matchmaking queue uses an in-memory AtomicReference, which works for a single instance but is not resilient in a distributed setup.
 
 **Example in Stone Game**:
 in a scaled deployment, matchmaking state should be externalized to Redis or a message broker so multiple backend replicas can share the same waiting queue consistently.
 
+---
 #### Idempotency and concurrency protection
 Multiplayer actions are sensitive to duplicate submissions and race conditions.
 
 **Example in Stone Game** :
 submitting the same move twice is already rejected in MultiplayerService, but for a more robust production design, optimistic locking or versioning could be added to protect match state updates across concurrent requests.
 
+---
 #### Observability-driven resilience
 Logs, metrics, and alerts should be used together to detect failures early.
 
@@ -412,6 +421,7 @@ alerts could be triggered on:
 - Repeated WebSocket notification failures
 - Abnormal increase in match completion errors
 
+---
 ####  in-memory to shared storage
 
 The current MatchmakingService stores the waiting player in memory:
@@ -424,6 +434,7 @@ Improvement: replace the in-memory queue with Redis so:
 - matchmaking survives pod restart
 - scaling becomes possible
 
+---
 #### Technologies that could be added
 
 A natural next step would be integrating Resilience4j for:
